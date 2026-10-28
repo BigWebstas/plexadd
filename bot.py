@@ -1,4 +1,4 @@
-"""Telegram bot: /movie <title> adds to Radarr, /tv <title> adds to Sonarr. Stdlib only."""
+"""Telegram bot: /movie <title> adds to Radarr, /tv <title> adds to Sonarr, /id shows your user ID. Stdlib only."""
 import json
 import os
 import sys
@@ -56,6 +56,14 @@ def label(item):
     return f"{item['title']} ({item['year']})" if item.get("year") else item["title"]
 
 
+def parse_command(msg):
+    """'/movie@bot dune' -> ('movie', 'dune'); non-commands give ('', text)."""
+    command, _, query = msg.get("text", "").partition(" ")
+    if not command.startswith("/"):
+        return "", msg.get("text", "")
+    return command[1:].split("@")[0], query
+
+
 class Bot:
     def __init__(self, token, allowed_users, services):
         self.base_url = f"https://api.telegram.org/bot{token}"
@@ -66,10 +74,8 @@ class Bot:
         return request("POST", f"{self.base_url}/{method}", body=params, timeout=60)["result"]
 
     def handle_message(self, msg):
-        text = msg.get("text", "")
-        command, _, query = text.partition(" ")
-        kind = command.split("@")[0].lstrip("/")
-        if not command.startswith("/") or kind not in self.services:
+        kind, query = parse_command(msg)
+        if kind not in self.services:
             return self.reply(msg, "Use /movie <title> or /tv <title>")
         if not query.strip():
             return self.reply(msg, f"Usage: /{kind} <title>")
@@ -98,7 +104,12 @@ class Bot:
 
     def handle_update(self, update):
         event = update.get("message") or update.get("callback_query")
-        if not event or event["from"]["id"] not in self.allowed_users:
+        if not event:
+            return
+        # Open to everyone so a new user can find the ID to put in ALLOWED_USER_IDS.
+        if "message" in update and parse_command(event)[0] == "id":
+            return self.reply(event, f"Your user ID: {event['from']['id']}")
+        if event["from"]["id"] not in self.allowed_users:
             return
         try:
             if "message" in update:
