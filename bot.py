@@ -1,4 +1,4 @@
-"""Telegram bot: /movie <title> adds to Radarr, /tv <title> adds to Sonarr, /id shows your user ID. Stdlib only."""
+"""Telegram bot: /movie <title> adds to Radarr, /tv <title> adds to Sonarr, /id shows your user ID, /status checks both apps. Stdlib only."""
 import json
 import os
 import sys
@@ -26,7 +26,8 @@ def request(method, url, headers=None, body=None, timeout=60):
 class Arr:
     """A Sonarr or Radarr instance (both speak the same v3 API for what we need)."""
 
-    def __init__(self, base_url, api_key, path, id_field, lookup_prefix, add_defaults):
+    def __init__(self, name, base_url, api_key, path, id_field, lookup_prefix, add_defaults):
+        self.name = name
         self.base_url = base_url.rstrip("/")
         self.headers = {"X-Api-Key": api_key}
         self.path = path
@@ -39,6 +40,21 @@ class Arr:
 
     def search(self, term):
         return self.call("GET", f"{self.path}/lookup?term={urllib.parse.quote(term)}")
+
+    def status(self):
+        """One line: version and any problems that would break health or adding."""
+        try:
+            version = self.call("GET", "system/status")["version"]
+            problems = [h["message"] for h in self.call("GET", "health") if h["type"] in ("warning", "error")]
+            if not self.call("GET", "rootfolder"):
+                problems.append("No root folder configured")
+            if not self.call("GET", "qualityprofile"):
+                problems.append("No quality profile configured")
+        except (OSError, RuntimeError) as e:
+            return f"❌ {self.name}: {getattr(e, 'reason', e)}"
+        if problems:
+            return f"⚠️ {self.name} {version}\n" + "\n".join(f"  • {p}" for p in problems)
+        return f"✅ {self.name} {version}"
 
     def add(self, ident):
         item = self.search(f"{self.lookup_prefix}:{ident}")[0]
@@ -75,8 +91,10 @@ class Bot:
 
     def handle_message(self, msg):
         kind, query = parse_command(msg)
+        if kind == "status":
+            return self.reply(msg, "\n".join(arr.status() for arr in self.services.values()))
         if kind not in self.services:
-            return self.reply(msg, "Use /movie <title> or /tv <title>")
+            return self.reply(msg, "Use /movie <title>, /tv <title> or /status")
         if not query.strip():
             return self.reply(msg, f"Usage: /{kind} <title>")
         arr = self.services[kind]
@@ -140,15 +158,17 @@ def main():
     env = os.environ
     try:
         services = {
-            "movie": Arr(env["RADARR_URL"], env["RADARR_API_KEY"], "movie", "tmdbId", "tmdb",
+            "movie": Arr("Radarr", env["RADARR_URL"], env["RADARR_API_KEY"], "movie", "tmdbId", "tmdb",
                          {"addOptions": {"searchForMovie": True}}),
-            "tv": Arr(env["SONARR_URL"], env["SONARR_API_KEY"], "series", "tvdbId", "tvdb",
+            "tv": Arr("Sonarr", env["SONARR_URL"], env["SONARR_API_KEY"], "series", "tvdbId", "tvdb",
                       {"seasonFolder": True, "addOptions": {"searchForMissingEpisodes": True}}),
         }
         token = env["TELEGRAM_TOKEN"]
-        allowed = {int(x) for x in env["ALLOWED_USER_IDS"].split(",")}
+        allowed = {int(x) for x in env["ALLOWED_USER_IDS"].split(",") if x.strip()}
     except KeyError as e:
         sys.exit(f"missing env var {e}")
+    if not allowed:
+        sys.exit("ALLOWED_USER_IDS has no user IDs")
     Bot(token, allowed, services).run()
 
 

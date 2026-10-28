@@ -6,6 +6,7 @@ Telegram bot that adds movies to Radarr and TV shows to Sonarr. Python 3, no dep
 
 - `/movie <title>` – search Radarr, tap a result to add it (monitored, search starts)
 - `/tv <title>` – search Sonarr, tap a result to add it (monitored, search starts)
+- `/status` – check Radarr and Sonarr are reachable, the API keys work, health is clean, and a root folder and quality profile exist
 - `/id` – show your Telegram user ID (works for anyone, to fill in `ALLOWED_USER_IDS`)
 
 New items use the first root folder and first quality profile in the app.
