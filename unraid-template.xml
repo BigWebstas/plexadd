@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>plexadd</Name>
+  <Repository>ghcr.io/bigwebstas/plexadd:latest</Repository>
+  <Registry>https://github.com/bigwebstas/plexadd/pkgs/container/plexadd</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/bigwebstas/plexadd/issues</Support>
+  <Overview>Telegram bot that adds movies to Radarr (/movie) and TV shows to Sonarr (/tv).</Overview>
+  <Category>MediaApp:Other Tools:</Category>
+  <Config Name="Telegram bot token" Target="TELEGRAM_TOKEN" Default="" Mode="" Description="Token from @BotFather" Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Allowed Telegram user IDs" Target="ALLOWED_USER_IDS" Default="" Mode="" Description="Comma-separated numeric user IDs; everyone else is ignored" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Radarr URL" Target="RADARR_URL" Default="http://192.168.1.2:7878" Mode="" Description="Radarr base URL reachable from this container" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Radarr API key" Target="RADARR_API_KEY" Default="" Mode="" Description="Radarr Settings > General" Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Sonarr URL" Target="SONARR_URL" Default="http://192.168.1.2:8989" Mode="" Description="Sonarr base URL reachable from this container" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Sonarr API key" Target="SONARR_API_KEY" Default="" Mode="" Description="Sonarr Settings > General" Type="Variable" Display="always" Required="true" Mask="true"/>
+</Container>
