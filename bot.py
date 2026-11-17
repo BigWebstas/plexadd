@@ -80,6 +80,9 @@ def parse_command(msg):
     return command[1:].split("@")[0], query
 
 
+ANYONE = object()  # sentinel: ALLOWED_USER_IDS contained "*"
+
+
 class Bot:
     def __init__(self, token, allowed_users, services):
         self.base_url = f"https://api.telegram.org/bot{token}"
@@ -127,7 +130,7 @@ class Bot:
         # Open to everyone so a new user can find the ID to put in ALLOWED_USER_IDS.
         if "message" in update and parse_command(event)[0] == "id":
             return self.reply(event, f"Your user ID: {event['from']['id']}")
-        if event["from"]["id"] not in self.allowed_users:
+        if self.allowed_users is not ANYONE and event["from"]["id"] not in self.allowed_users:
             return
         try:
             if "message" in update:
@@ -164,7 +167,8 @@ def main():
                       {"seasonFolder": True, "addOptions": {"searchForMissingEpisodes": True}}),
         }
         token = env["TELEGRAM_TOKEN"]
-        allowed = {int(x) for x in env["ALLOWED_USER_IDS"].split(",") if x.strip()}
+        entries = [x.strip() for x in env["ALLOWED_USER_IDS"].split(",") if x.strip()]
+        allowed = ANYONE if "*" in entries else {int(x) for x in entries if x != "*"}
     except KeyError as e:
         sys.exit(f"missing env var {e}")
     if not allowed:
